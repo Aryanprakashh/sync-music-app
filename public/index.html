@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Music - Listen Together</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fas fa-music"></i> Sync Music</h1>
+            <p>Listen to music together in real-time</p>
+        </header>
+
+        <!-- Auth Section -->
+        <div id="auth-section" class="auth-section">
+            <div class="auth-card">
+                <h2>Connect with Spotify</h2>
+                <p>To start listening together, you need to connect your Spotify account</p>
+                <button id="spotify-auth-btn" class="btn btn-primary">
+                    <i class="fab fa-spotify"></i> Connect Spotify
+                </button>
+            </div>
+        </div>
+
+        <!-- Main App Section -->
+        <div id="app-section" class="app-section hidden">
+            <!-- Session Management -->
+            <div class="session-section">
+                <div class="session-card">
+                    <h3>Session Management</h3>
+                    <div class="session-controls">
+                        <div class="session-input-group">
+                            <input type="text" id="session-id-input" placeholder="Enter Session ID" class="input">
+                            <button id="join-session-btn" class="btn btn-secondary">Join Session</button>
+                        </div>
+                        <div class="session-actions">
+                            <button id="create-session-btn" class="btn btn-primary">Create New Session</button>
+                            <button id="copy-session-btn" class="btn btn-outline">Copy Session ID</button>
+                        </div>
+                    </div>
+                    <div id="session-info" class="session-info hidden">
+                        <p><strong>Session ID:</strong> <span id="current-session-id"></span></p>
+                        <p><strong>Connected Users:</strong> <span id="connected-users">1</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Music Player -->
+            <div class="player-section">
+                <div class="player-card">
+                    <div class="now-playing">
+                        <div class="album-art">
+                            <img id="album-art" src="https://via.placeholder.com/200x200/1db954/ffffff?text=No+Track" alt="Album Art">
+                        </div>
+                        <div class="track-info">
+                            <h3 id="track-title">No track selected</h3>
+                            <p id="track-artist">Select a track to start listening</p>
+                            <p id="track-album"></p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-section">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="time-display">
+                            <span id="current-time">0:00</span>
+                            <span id="total-time">0:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Player Controls -->
+                    <div class="player-controls">
+                        <button id="prev-btn" class="control-btn" disabled>
+                            <i class="fas fa-step-backward"></i>
+                        </button>
+                        <button id="play-pause-btn" class="control-btn play-btn">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button id="next-btn" class="control-btn" disabled>
+                            <i class="fas fa-step-forward"></i>
+                        </button>
+                    </div>
+
+                    <!-- Volume Control -->
+                    <div class="volume-section">
+                        <i class="fas fa-volume-up"></i>
+                        <input type="range" id="volume-slider" min="0" max="100" value="50" class="volume-slider">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Playlist Section -->
+            <div class="search-section">
+                <div class="search-card">
+                    <h3>Search & Playlists</h3>
+                    
+                    <!-- Search -->
+                    <div class="search-group">
+                        <input type="text" id="search-input" placeholder="Search for songs..." class="input">
+                        <button id="search-btn" class="btn btn-primary">Search</button>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="search">Search Results</button>
+                        <button class="tab-btn" data-tab="playlists">Your Playlists</button>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div id="search-tab" class="tab-content active">
+                        <div id="search-results" class="track-list">
+                            <p class="empty-state">Search for songs to get started</p>
+                        </div>
+                    </div>
+
+                    <!-- Playlists -->
+                    <div id="playlists-tab" class="tab-content">
+                        <div id="playlists-list" class="playlist-list">
+                            <p class="empty-state">Loading your playlists...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Info -->
+            <div class="user-section">
+                <div class="user-card">
+                    <div class="user-info">
+                        <img id="user-avatar" src="https://via.placeholder.com/50x50/1db954/ffffff?text=U" alt="User Avatar" class="user-avatar">
+                        <div class="user-details">
+                            <h4 id="user-name">User</h4>
+                            <p id="user-email">user@example.com</p>
+                        </div>
+                    </div>
+                    <button id="logout-btn" class="btn btn-outline">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <!-- Notification -->
+        <div id="notification" class="notification hidden">
+            <span id="notification-message"></span>
+            <button id="notification-close" class="notification-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 
