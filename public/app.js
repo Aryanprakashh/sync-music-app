@@ -97,14 +97,25 @@ async function loadUserInfo() {
     try {
         showLoading();
         const response = await fetch(`/api/current-user?accessToken=${accessToken}`);
-        const user = await response.json();
+        const data = await response.json();
         
         if (response.ok) {
-            userInfo = user;
+            userInfo = data;
             updateUserInfo();
             loadPlaylists();
         } else {
-            throw new Error('Failed to load user info');
+            // Handle specific error status codes
+            if (response.status === 401) {
+                // Token expired, redirect to auth
+                showNotification(data.error || 'Session expired. Please reconnect.', 'error');
+                setTimeout(() => {
+                    logout();
+                }, 2000);
+            } else if (response.status === 429) {
+                showNotification('Too many requests. Please wait a moment.', 'warning');
+            } else {
+                showNotification(data.error || 'Failed to load user information', 'error');
+            }
         }
     } catch (error) {
         console.error('Error loading user info:', error);
@@ -183,6 +194,16 @@ function initializeSocket() {
         console.log('Disconnected from server');
         showNotification('Connection lost. Trying to reconnect...', 'warning');
     });
+    
+    socket.on('error', (error) => {
+        console.error('Socket error:', error);
+        showNotification(error.message || 'An error occurred', 'error');
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        showNotification('Failed to connect to server', 'error');
+    });
 }
 
 // Session management
@@ -237,6 +258,11 @@ function togglePlayPause() {
         return;
     }
     
+    if (!socket || !socket.connected) {
+        showNotification('Not connected to server', 'error');
+        return;
+    }
+    
     isPlaying = !isPlaying;
     updatePlayButton();
     
@@ -274,6 +300,11 @@ function changeTrack(direction) {
 function seekTo(event) {
     if (!currentSessionId || !trackDuration) return;
     
+    if (!socket || !socket.connected) {
+        showNotification('Not connected to server', 'error');
+        return;
+    }
+    
     const rect = event.currentTarget.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const percentage = clickX / rect.width;
@@ -291,12 +322,17 @@ function seekTo(event) {
 function changeVolume(event) {
     const volume = event.target.value;
     
-    if (currentSessionId) {
-        socket.emit('volume-change', {
-            sessionId: currentSessionId,
-            volume: volume
-        });
+    if (!currentSessionId) return;
+    
+    if (!socket || !socket.connected) {
+        // Don't show error for volume changes, just return silently
+        return;
     }
+    
+    socket.emit('volume-change', {
+        sessionId: currentSessionId,
+        volume: parseFloat(volume)
+    });
 }
 
 function startProgressUpdate() {
@@ -358,11 +394,21 @@ async function performSearch() {
         if (response.ok) {
             displaySearchResults(data.tracks.items);
         } else {
-            throw new Error('Search failed');
+            // Handle specific error status codes
+            if (response.status === 401) {
+                showNotification(data.error || 'Session expired. Please reconnect.', 'error');
+                setTimeout(() => logout(), 2000);
+            } else if (response.status === 400) {
+                showNotification(data.error || 'Invalid search query', 'error');
+            } else if (response.status === 429) {
+                showNotification('Too many requests. Please wait a moment before searching again.', 'warning');
+            } else {
+                showNotification(data.error || 'Search failed', 'error');
+            }
         }
     } catch (error) {
         console.error('Search error:', error);
-        showNotification('Search failed', 'error');
+        showNotification('Search failed. Please try again.', 'error');
     } finally {
         hideLoading();
     }
@@ -390,6 +436,11 @@ function displaySearchResults(tracks) {
 function selectTrack(uri, name, artist, album, imageUrl, duration) {
     if (!currentSessionId) {
         showNotification('Please join a session first', 'error');
+        return;
+    }
+    
+    if (!socket || !socket.connected) {
+        showNotification('Not connected to server', 'error');
         return;
     }
     
@@ -431,7 +482,16 @@ async function loadPlaylists() {
         if (response.ok) {
             displayPlaylists(data.items);
         } else {
-            throw new Error('Failed to load playlists');
+            // Handle specific error status codes
+            if (response.status === 401) {
+                showNotification(data.error || 'Session expired. Please reconnect.', 'error');
+                setTimeout(() => logout(), 2000);
+            } else if (response.status === 429) {
+                showNotification('Too many requests. Please wait a moment.', 'warning');
+                document.getElementById('playlists-list').innerHTML = '<p class="empty-state">Please wait before loading playlists</p>';
+            } else {
+                document.getElementById('playlists-list').innerHTML = `<p class="empty-state">${data.error || 'Failed to load playlists'}</p>`;
+            }
         }
     } catch (error) {
         console.error('Error loading playlists:', error);
@@ -461,6 +521,24 @@ function displayPlaylists(playlists) {
 function selectPlaylist(playlistId, playlistName) {
     showNotification(`Playlist "${playlistName}" selected. Track selection coming soon!`, 'info');
     // This would need to be implemented to load playlist tracks
+}
+
+// Error handling helper
+function handleApiError(response, data, defaultMessage) {
+    if (response.status === 401) {
+        showNotification(data.error || 'Session expired. Please reconnect.', 'error');
+        setTimeout(() => logout(), 2000);
+        return true; // Indicates auth error
+    } else if (response.status === 400) {
+        showNotification(data.error || defaultMessage, 'error');
+        return false;
+    } else if (response.status === 429) {
+        showNotification('Too many requests. Please wait a moment.', 'warning');
+        return false;
+    } else {
+        showNotification(data.error || defaultMessage, 'error');
+        return false;
+    }
 }
 
 // UI helpers
